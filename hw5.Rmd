@@ -1,5 +1,5 @@
 ---
-title: "HW5"
+title: "Homework #5"
 author: "Jacob Shoemaker; jshoemaker2249"
 date: "4/2/2019"
 output: html_document
@@ -19,3 +19,79 @@ if (file.exists("alcohol.rds")) {
   saveRDS(data, file="alcohol.rds")
 }
 ```
+
+Data cleaning:
+extract geographic latitude and longitude from the variable Store Location
+check variable types. Pick five variables that need to be converted to a different type and fix those.
+extract year, month and day from the variable Date
+```{r}
+data <- readRDS("alcohol.rds")
+library(dplyr)
+library(tidyr)
+data <- separate(data, "Store Location", c("Address", "Coordinates"), sep = "\\(")
+data <- separate(data, "Coordinates", c("latitude", "longitude"), sep = ",")
+data<- separate(data, "longitude", c("longitude", "empty"), sep = "\\)")
+data <- data %>% select(-c("empty"))
+```
+
+
+```{r}
+data$latitude <- as.numeric(data$latitude)
+data$longitude <- as.numeric(data$longitude)
+data$`Vendor Number` <- as.numeric(data$`Vendor Number`)
+data$`Store Name` <- as.factor(data$`Store Name`)
+data$`Category Name` <- as.factor(data$`Category Name`)
+```
+
+
+```{r}
+data <- data %>% mutate("Real Date" = Date) %>% separate("Date", c("Month", "Day", "Year"), sep="/")
+```
+
+
+First overview:
+Plot a scatterplot of lat and long of store locations.
+Provide a visual breakdown of the liquor category (by Category Name). Include volume sold in the breakdown.
+
+```{r}
+library(ggplot2)
+ggplot(data, aes(x = latitude, y = longitude)) + geom_point()
+```
+
+```{r}
+agg <- data %>% group_by(`Category Name`) %>% summarise(total = (sum(`Volume Sold (Liters)`)/1000))
+agg <- agg[order(-agg$total), ]
+agg <- head(agg, 20)
+ggplot(agg, aes(x= reorder(`Category Name`, -total), y=total)) + geom_col(fill = "red") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + xlab("Liquor Category") + ylab("Volume Sold (In Thousands of Liters)") + ggtitle("20 Highest Selling Liquors in Ames")
+```
+
+
+From this graph, you can see that the overwhelmingly popular choices of liquor in Ames are vodka, rum, and whiskey. This makes sense, given that these alcohols are most popular with students, which are a large chunk of the Ames population.
+
+
+Find the daily sales liquor sales in Ames in 2018. Summarize number of sales, volume of liquor sold and amount of money spent. Plot volume sold by day (use a scatterplot of volume by day and facet by month). Describe any patterns. Find the dates for ISU football home games in Fall 2018. Can you see a pattern?
+
+```{r}
+sales <- data %>% filter(Year == 2018)
+summary2018 <- sales %>% summarise(numSales = sum(sales$`Bottles Sold`), volLiquor = sum(sales$`Volume Sold (Gallons)`), amtMoney = sum(sales$`Sale (Dollars)`))
+summary2018
+```
+
+```{r}
+sales$Day <- as.numeric(sales$Day)
+ggplot(sales, aes(x=Day, y=`Volume Sold (Gallons)`)) + geom_point() + facet_wrap(~Month) + scale_x_continuous(breaks=seq(0,30,5)) + xlab("Day of Month") + ylab("Volume Sold (Gallons)") + ggtitle("Breakdown of Liquor Sales by Month")
+```
+
+
+Looking at this graph, I first notice that there are approximately 3-4 points that are signifancantly higher than the rest of the points, and they are evenly spaced from each other. From this, I would be led to believe that these peaks are the weekends.
+
+Football home game dates: 9/1/18, 9/15/18, 9/22/18, 10/13/18, 10/27/18, 11/10/18, 11/24/18, 12/1/18
+
+As for data pertaining to football games, I wanted to ensure there was data available for these days, as I saw the month of October is mostly empty, and there was a lot of missing data from a first glance at the previous graph.
+```{r}
+football <- sales %>% filter((Day==1 & Month == 12) | (Day==24 & Month == 11) | (Day==10 & Month == 11) | (Day==27 & Month == 10) | (Day==13 & Month == 10) | (Day==22 & Month == 9) | (Day==15 & Month == 9) | (Day==1 & Month == 9))
+football
+```
+
+
+Looking at the results here, there is no available information for game days. Therefore, there is no pattern to see. 
